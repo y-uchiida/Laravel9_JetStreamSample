@@ -23,6 +23,7 @@ class DeleteUser implements DeletesUsers
      */
     public function __construct(DeletesTeams $deletesTeams)
     {
+        /* DeletesTeams コントラクトをDIでもってくる */
         $this->deletesTeams = $deletesTeams;
     }
 
@@ -34,11 +35,12 @@ class DeleteUser implements DeletesUsers
      */
     public function delete($user)
     {
+        /* ユーザー削除時の一連の処理を記述 */
         DB::transaction(function () use ($user) {
-            $this->deleteTeams($user);
-            $user->deleteProfilePhoto();
-            $user->tokens->each->delete();
-            $user->delete();
+            $this->deleteTeams($user); // まずdeleteTeams() でユーザーに関連するチームの削除処理を行う
+            $user->deleteProfilePhoto(); // プロフィール画像を削除
+            $user->tokens->each->delete(); // 当該ユーザーのためのトークンを削除(複数あるのでeach() でそれぞれに処理をかけてる)
+            $user->delete(); // ユーザーを削除
         });
     }
 
@@ -50,8 +52,10 @@ class DeleteUser implements DeletesUsers
      */
     protected function deleteTeams($user)
     {
-        $user->teams()->detach();
+        /* 削除対象のユーザーがリレーションを持つチームに対する処理 */
+        $user->teams()->detach(); // ユーザーが所属しているチームのリレーションを除去
 
+        /* 当該ユーザーがオーナーになっているチームを削除(複数あるのでeach を使ってる) */
         $user->ownedTeams->each(function ($team) {
             $this->deletesTeams->delete($team);
         });
